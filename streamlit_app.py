@@ -60,7 +60,7 @@ if prompt := st.chat_input("Ask Gemini something..."):
             response = client.models.generate_content(
                 model="gemini-2.5-flash", 
                 config=types.GenerateContentConfig(
-                    system_instruction="You are a helpful AI assistant."
+                    system_instruction="You are Asti - an AI assistant completely in malayalam language. Given output in malayalam languange in a nice way."
                 ),
                 contents=gemini_history
             )
