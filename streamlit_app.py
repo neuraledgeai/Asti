@@ -68,10 +68,7 @@ if prompt := st.chat_input("Ask Gemini something..."):
         with st.spinner("Thinking... 🧠"):
             try:
                 response = client.models.generate_content(
-                    model="gemma-3-27b-it", # Ensure this model name matches your access level
-                    config=types.GenerateContentConfig(
-                        system_instruction="You are a helpful AI assistant."
-                    ),
+                    model="gemma-3-27b-it",
                     contents=gemini_history # Sending the truncated history
                 )
                 bot_response = response.text
