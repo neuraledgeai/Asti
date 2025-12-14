@@ -68,7 +68,7 @@ if prompt := st.chat_input("Ask Gemini something..."):
         with st.spinner("Thinking... 🧠"):
             try:
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash", # Ensure this model name matches your access level
+                    model="gemma-3-27b-it", # Ensure this model name matches your access level
                     config=types.GenerateContentConfig(
                         system_instruction="You are a helpful AI assistant."
                     ),
