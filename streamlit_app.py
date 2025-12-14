@@ -24,9 +24,8 @@ if "messages" not in st.session_state:
 # 4. Display Chat History
 # We re-draw all previous messages every time the script re-runs
 for message in st.session_state.messages:
-    with st.spinner("Thinking... 🧠"):
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 # 5. Chat Input Listener
 if prompt := st.chat_input("Ask Gemini something..."):
