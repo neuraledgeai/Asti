@@ -5,7 +5,7 @@ from google.genai import types
 # 1. Page Configuration
 st.set_page_config(page_title="Gemini Chat", page_icon="🤖")
 st.title("🤖 Gemini AI Chat")
-st.caption("Powered by Google Gemini 1.5 Flash")
+st.caption("Powered by Google Gemini")
 
 # 2. API Setup
 try:
@@ -16,7 +16,7 @@ except FileNotFoundError:
 
 client = genai.Client(api_key=API_KEY)
 
-# 3. Initialize Session State
+# 3. Initialize Session State (Chat History)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -28,43 +28,56 @@ for message in st.session_state.messages:
 # 5. Chat Input Listener
 if prompt := st.chat_input("Ask Gemini something..."):
     
-    # A. Display User Message
+    # A. Display User Message & Save to State
     with st.chat_message("user"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # B. Prepare History (Memory Management)
-    # Instead of counting tokens, we simply keep the last 15 messages.
-    # This prevents the "Context Limit" crash without any lag.
-    recent_messages = st.session_state.messages[-15:]
-    
+    # B. Prepare History for Gemini API (With Manual Truncation)
     gemini_history = []
-    for msg in recent_messages:
-        role = "user" if msg["role"] == "user" else "model"
-        gemini_history.append(
-            types.Content(
-                role=role,
-                parts=[types.Part.from_text(text=msg["content"])]
+    
+    # Heuristic: 1 Token ~= 4 Chars. 
+    # Max Limit is ~1M tokens. We set a safe buffer at ~800k tokens (3.2M chars).
+    # You can lower this number (e.g., 100000) if you want the app to be faster.
+    MAX_CHAR_LIMIT = 3200000 
+    current_char_count = 0
+    
+    # We iterate backwards (newest to oldest) to ensure we keep the most recent context
+    for msg in reversed(st.session_state.messages):
+        msg_content = msg["content"]
+        msg_len = len(msg_content)
+        
+        # Check if adding this message exceeds our safe limit
+        if current_char_count + msg_len < MAX_CHAR_LIMIT:
+            role = "user" if msg["role"] == "user" else "model"
+            
+            # Since we are iterating backwards, we insert at the beginning of the list [0]
+            gemini_history.insert(0, 
+                types.Content(
+                    role=role,
+                    parts=[types.Part.from_text(text=msg_content)]
+                )
             )
-        )
+            current_char_count += msg_len
+        else:
+            # If limit is reached, stop adding older messages
+            break
 
-    # C. Generate Response
+    # C. Generate Response with Spinner
     with st.chat_message("assistant"):
         with st.spinner("Thinking... 🧠"):
             try:
-                # Switched to 1.5-flash for better limits (1500/day vs 20/day)
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model="gemini-2.5-flash", # Ensure this model name matches your access level
                     config=types.GenerateContentConfig(
                         system_instruction="You are a helpful AI assistant."
                     ),
-                    contents=gemini_history
+                    contents=gemini_history # Sending the truncated history
                 )
-                
                 bot_response = response.text
                 st.markdown(bot_response)
                 
-                # Save Assistant Message
+                # D. Save Assistant Message to State
                 st.session_state.messages.append({"role": "assistant", "content": bot_response})
 
             except Exception as e:
