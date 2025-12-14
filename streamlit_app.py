@@ -2,70 +2,74 @@ import streamlit as st
 from google import genai
 from google.genai import types
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-st.set_page_config(
-    page_title="Gemini Chat",
-    page_icon="🤖",
-    layout="centered"
-)
+# 1. Page Configuration
+st.set_page_config(page_title="Gemini Chat", page_icon="🤖")
+st.title("🤖 Gemini AI Chat")
 
-st.title("💬 Gemini AI Chat")
-st.caption("A tiny Streamlit + Gemini chat app")
+# 2. API Setup
+# Retrieve API Key from Streamlit Secrets
+try:
+    API_KEY = st.secrets["asti_api_key"]
+except FileNotFoundError:
+    st.error("Secrets file not found. Please create .streamlit/secrets.toml")
+    st.stop()
 
-# -----------------------------
-# API KEY (direct paste, as requested)
-# -----------------------------
-asti_api_key = st.secrets["asti_api_key"]
+# Initialize the Client
+client = genai.Client(api_key=API_KEY)
 
-client = genai.Client(api_key=asti_api_key)
-
-# -----------------------------
-# SESSION STATE
-# -----------------------------
+# 3. Initialize Session State (Chat History)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# -----------------------------
-# DISPLAY CHAT HISTORY
-# -----------------------------
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# 4. Display Chat History
+# We re-draw all previous messages every time the script re-runs
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# -----------------------------
-# USER INPUT
-# -----------------------------
-user_input = st.chat_input("Type your message...")
-
-if user_input:
-    # Show user message
-    st.session_state.messages.append(
-        {"role": "user", "content": user_input}
-    )
+# 5. Chat Input Listener
+if prompt := st.chat_input("Ask Gemini something..."):
+    
+    # A. Display User Message immediately
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(prompt)
+    
+    # B. Add User Message to Session State
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # -----------------------------
-    # GEMINI RESPONSE
-    # -----------------------------
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking... 🧠"):
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                config=types.GenerateContentConfig(
-                    system_instruction=(
-                        "You are a helpful, concise AI assistant."
-                    )
-                ),
-                contents=user_input
+    # C. Prepare History for Gemini API
+    # Gemini expects roles to be "user" or "model" (Streamlit uses "assistant")
+    # We convert the chat history to the format the SDK expects
+    gemini_history = []
+    for msg in st.session_state.messages:
+        role = "user" if msg["role"] == "user" else "model"
+        gemini_history.append(
+            types.Content(
+                role=role,
+                parts=[types.Part.from_text(text=msg["content"])]
             )
+        )
 
-            assistant_reply = response.text
-            st.markdown(assistant_reply)
+    # D. Generate Response
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        
+        try:
+            # Note: Using the model you requested. 
+            # If "gemini-2.5-flash" is not available yet, switch to "gemini-1.5-flash"
+            response = client.models.generate_content(
+                model="gemini-2.5-flash", 
+                config=types.GenerateContentConfig(
+                    system_instruction="You are a helpful AI assistant."
+                ),
+                contents=gemini_history
+            )
+            
+            bot_response = response.text
+            message_placeholder.markdown(bot_response)
+            
+            # E. Add Assistant Message to Session State
+            st.session_state.messages.append({"role": "assistant", "content": bot_response})
 
-    # Save assistant message
-    st.session_state.messages.append(
-        {"role": "assistant", "content": assistant_reply}
-    )
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
