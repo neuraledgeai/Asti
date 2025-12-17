@@ -148,10 +148,10 @@ if prompt := st.chat_input("Ask Gemini something..."):
         with st.spinner("Thinking... 🧠"):
             try:
                 response = client.models.generate_content(
-                    model="gemma-3-27b-it", # Use 2.0 or 1.5-flash for best multimodal results
-                    # config=types.GenerateContentConfig(
-                    #    system_instruction="You are a helpful AI assistant. When analyzing documents or images, be detailed."
-                    # ),
+                    model="gemini-2.0-flash", # Use 2.0 or 1.5-flash for best multimodal results
+                    config=types.GenerateContentConfig(
+                        system_instruction="You are a helpful AI assistant. When analyzing documents or images, be detailed."
+                    ),
                     contents=gemini_history
                 )
                 bot_response = response.text
